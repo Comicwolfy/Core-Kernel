@@ -14,33 +14,6 @@ Features
 
     Simple memory layout using linker scripts
 
-
-Getting Started
-Prerequisites
-
-    NASM (Netwide Assembler)
-
-    Cross-compiler targeting x86_64 (e.g., x86_64-elf-gcc)
-
-    GNU Make
-
-    GRUB bootloader (used to boot kernel)
-
-    QEMU or a real x86_64 machine for testing (note: may not boot reliably yet)
-
-Building
-
-Run:
-
-make
-
-This will build the bootloader and kernel, producing kernel.bin and prepare everything for booting with GRUB.
-Running
-
-Use QEMU to test:
-
-qemu-system-x86_64 -cdrom your-iso-or-grub-setup.iso
-
 Note: Because the kernel is experimental, booting may fail or hang on many systems.
 Future Plans
 
