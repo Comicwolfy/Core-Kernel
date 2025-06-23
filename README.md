@@ -14,17 +14,6 @@ Features
 
     Simple memory layout using linker scripts
 
-Project Structure
-
-boot/
-  ├─ grub/          # GRUB configuration files
-  ├─ boot.s         # Assembly bootloader code
-kernel/             # Kernel source code (C/ASM)
-kernel.bin          # Linked kernel binary
-linker.ld           # Linker script for kernel layout
-Makefile            # Build automation
-README.md           # This documentation
-LICENSE             # Project license
 
 Getting Started
 Prerequisites
