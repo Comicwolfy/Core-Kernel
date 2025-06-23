@@ -4,6 +4,10 @@ Core is a minimalist 64-bit kernel written from scratch, designed as a foundatio
 
     Warning: This kernel is experimental and currently does not work reliably on most hardware or emulators. Use for learning and experimentation only.
 
+Requirements
+
+        electricity
+
 Features
 
     64-bit kernel entry point
