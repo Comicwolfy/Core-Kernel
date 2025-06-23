@@ -6,7 +6,7 @@ Core is a minimalist 64-bit kernel written from scratch, designed as a foundatio
 
 Requirements
 
-        electricity
+    electricity, anything that turns on 
 
 Features
 
