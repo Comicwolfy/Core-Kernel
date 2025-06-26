@@ -1,4 +1,4 @@
-#Core Kernel
+# Core Kernel
 
 Core is a minimalist 64-bit kernel written from scratch, designed as a foundation for a custom operating system. It demonstrates basic kernel entry and simple output but is still in very early development.
 
