@@ -3,11 +3,11 @@
 ## Core is a minimalist modular kernel written from scratch, designed as a foundation for a modular OS.
 
 Warning: This kernel is experimental and currently does not work reliably on most hardware or emulators YET.
-Requirements
+## Requirements
 
     qemu
 
-Features
+## Features
 
     Kernel entry point
 
