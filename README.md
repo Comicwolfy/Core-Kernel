@@ -29,7 +29,7 @@ Note: Because the kernel is extremely experimental, booting will likely fail or 
 
 ## Adding New Extensions
 
-Want to add your own module? Just drop your extension's C source file (e.g., my_cool_module.c) into the src/extensions/ directory. Make sure your extension includes a function like this, marked with the __attribute__((section(".ext_register_fns"))) magic, which handles registering and loading itself:
+Want to add your own module? Just drop your extension's C source file (e.g.,``` my_cool_module.c```) into the ```src/extensions/``` directory. Make sure your extension includes a function like this, marked with the ```__attribute__((section(".ext_register_fns")))``` , which handles registering and loading itself:
 
      // In src/extensions/my_cool_module.c 
     #include "base_kernel.h"
