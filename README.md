@@ -1,17 +1,17 @@
 ***CORE KERNEL IS CURRENTLY NOT FUNCTIONAL, I WILL BE UPDATING SOON WITH NEW DOCUMENTATION AND SOME REWRITING - 26/06/25***
 # Core Kernel
 
-Core is a minimalist 64-bit kernel written from scratch, designed as a foundation for a custom operating system. It demonstrates basic kernel entry and simple output but is still in very early development.
+Core is a minimalist modular kernel written from scratch, designed as a foundation for a modular os
 
     Warning: This kernel is experimental and currently does not work reliably on most hardware or emulators YET
 
 Requirements
 
-    electricity, anything that turns on 
+    qemu
 
 Features
 
-    64-bit kernel entry point
+    kernel entry point
 
     Basic screen output
 
