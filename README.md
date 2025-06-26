@@ -19,9 +19,14 @@ Features
 
     Simple memory layout using linker scripts
 
-Note: Because the kernel is experimental, booting may fail or hang on many systems.
+
+Note: Because the kernel is extremley experimental, booting will fail or hang on most systems.
 Future Plans
 
+    Networking
+
+    Extentions
+    
     Fix bootloader and kernel stability issues
 
     Implement paging and proper memory management
