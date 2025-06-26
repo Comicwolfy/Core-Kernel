@@ -1,291 +1,85 @@
-# Makefile for BASE Kernel
-# Cross-compiler toolchain configuration
+# --- Compiler and Linker Settings ---
+CC = gcc
+AS = nasm
+LD = ld
 
-# Target architecture
-ARCH = i686
-TARGET = $(ARCH)-elf
+CFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
+         -fno-pie -c -Wall -Wextra -Iincludes # Added -Iincludes
+ASFLAGS = -f elf
 
-# Cross-compiler tools
-CC = $(TARGET)-gcc
-LD = $(TARGET)-ld
-AS = $(TARGET)-as
-OBJCOPY = $(TARGET)-objcopy
-OBJDUMP = $(TARGET)-objdump
+# --- Output Files ---
+KERNEL_BIN = bin/kernel.bin
+KERNEL_ELF = bin/kernel.elf
 
-# Alternative: Use system GCC if cross-compiler not available
-# Uncomment these lines if you don't have a cross-compiler
-# CC = gcc
-# LD = ld
-# AS = as
+# --- Source Files ---
+# Core C sources
+C_SOURCES = src/kernel.c \
+            src/extension_bootstrap.c # NEW: Add the extension bootstrap file
 
-# Project configuration
-KERNEL_NAME = base
-VERSION = 1.0
+# Extension C sources (place your extension files here)
+C_SOURCES += src/extensions/irq_kb_extension.c \
+             src/extensions/timer_extension.c
 
-# Directories
-SRC_DIR = src
-BUILD_DIR = build
-ISO_DIR = iso
-BOOT_DIR = $(ISO_DIR)/boot
-GRUB_DIR = $(BOOT_DIR)/grub
+# Assembly sources
+ASM_SOURCES = src/boot.asm \
+              src/irq_stubs.asm # NEW: Add the interrupt stubs
 
-# Source files
-KERNEL_SOURCES = base_kernel.c
-ASM_SOURCES = boot.s
-LINKER_SCRIPT = linker.ld
+# --- Object Files (derived from sources) ---
+OBJECTS = $(C_SOURCES:.c=.o) $(ASM_SOURCES:.asm=.o)
 
-# Object files
-KERNEL_OBJECTS = $(KERNEL_SOURCES:.c=.o)
-ASM_OBJECTS = $(ASM_SOURCES:.s=.o)
-ALL_OBJECTS = $(ASM_OBJECTS) $(KERNEL_OBJECTS)
+# --- Build Targets ---
+.PHONY: all clean run debug
 
-# Compiler flags
-CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -Werror
-CFLAGS += -fno-builtin -fno-stack-protector -nostdlib -nodefaultlibs
-CFLAGS += -mno-red-zone -mno-mmx -mno-sse -mno-sse2
-CFLAGS += -m32 -march=i686
+all: $(KERNEL_BIN)
 
-# Assembler flags
-ASFLAGS = --32
+$(KERNEL_BIN): $(KERNEL_ELF)
+	objcopy -O binary $< $@
 
-# Linker flags
-LDFLAGS = -m elf_i386 -nostdlib
-LDFLAGS += -T $(LINKER_SCRIPT)
+$(KERNEL_ELF): $(OBJECTS)
+	$(LD) -m elf_i386 -T linker.ld -o $@ $(OBJECTS)
 
-# QEMU settings for testing
-QEMU = qemu-system-i386
-QEMU_FLAGS = -m 512M -serial stdio
-QEMU_FLAGS += -drive file=$(KERNEL_NAME).iso,media=cdrom
+# --- Compilation Rules ---
+%.o: src/%.c
+	$(CC) $(CFLAGS) $< -o $@
 
-# Build targets
-.PHONY: all clean kernel iso run debug help install deps
+%.o: src/extensions/%.c # Rule for compiling files in src/extensions
+	$(CC) $(CFLAGS) $< -o $@
 
-# Default target
-all: kernel
+%.o: src/%.asm
+	$(AS) $(ASFLAGS) $< -o $@
 
-# Help target
-help:
-	@echo "BASE Kernel Build System"
-	@echo "========================"
-	@echo ""
-	@echo "Available targets:"
-	@echo "  all      - Build the kernel (default)"
-	@echo "  kernel   - Build kernel binary"
-	@echo "  iso      - Create bootable ISO image"
-	@echo "  run      - Run kernel in QEMU"
-	@echo "  debug    - Run kernel in QEMU with debugging"
-	@echo "  clean    - Clean build files"
-	@echo "  deps     - Check/install dependencies"
-	@echo "  install  - Install to /boot (requires sudo)"
-	@echo "  help     - Show this help message"
-	@echo ""
-	@echo "Configuration:"
-	@echo "  ARCH     = $(ARCH)"
-	@echo "  TARGET   = $(TARGET)"
-	@echo "  CC       = $(CC)"
-	@echo "  VERSION  = $(VERSION)"
-
-# Create build directory
-$(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
-
-# Compile C source files
-%.o: %.c | $(BUILD_DIR)
-	@echo "CC $<"
-	$(CC) $(CFLAGS) -c $< -o $(BUILD_DIR)/$@
-
-# Assemble assembly files
-%.o: %.s | $(BUILD_DIR)
-	@echo "AS $<"
-	$(AS) $(ASFLAGS) $< -o $(BUILD_DIR)/$@
-
-# Create linker script if it doesn't exist
-$(LINKER_SCRIPT):
-	@echo "Creating linker script..."
-	@echo "ENTRY(_start)" > $(LINKER_SCRIPT)
-	@echo "" >> $(LINKER_SCRIPT)
-	@echo "SECTIONS" >> $(LINKER_SCRIPT)
-	@echo "{" >> $(LINKER_SCRIPT)
-	@echo "    . = 1M;" >> $(LINKER_SCRIPT)
-	@echo "" >> $(LINKER_SCRIPT)
-	@echo "    .text BLOCK(4K) : ALIGN(4K)" >> $(LINKER_SCRIPT)
-	@echo "    {" >> $(LINKER_SCRIPT)
-	@echo "        *(.multiboot)" >> $(LINKER_SCRIPT)
-	@echo "        *(.text)" >> $(LINKER_SCRIPT)
-	@echo "    }" >> $(LINKER_SCRIPT)
-	@echo "" >> $(LINKER_SCRIPT)
-	@echo "    .rodata BLOCK(4K) : ALIGN(4K)" >> $(LINKER_SCRIPT)
-	@echo "    {" >> $(LINKER_SCRIPT)
-	@echo "        *(.rodata)" >> $(LINKER_SCRIPT)
-	@echo "    }" >> $(LINKER_SCRIPT)
-	@echo "" >> $(LINKER_SCRIPT)
-	@echo "    .data BLOCK(4K) : ALIGN(4K)" >> $(LINKER_SCRIPT)
-	@echo "    {" >> $(LINKER_SCRIPT)
-	@echo "        *(.data)" >> $(LINKER_SCRIPT)
-	@echo "    }" >> $(LINKER_SCRIPT)
-	@echo "" >> $(LINKER_SCRIPT)
-	@echo "    .bss BLOCK(4K) : ALIGN(4K)" >> $(LINKER_SCRIPT)
-	@echo "    {" >> $(LINKER_SCRIPT)
-	@echo "        *(COMMON)" >> $(LINKER_SCRIPT)
-	@echo "        *(.bss)" >> $(LINKER_SCRIPT)
-	@echo "    }" >> $(LINKER_SCRIPT)
-	@echo "}" >> $(LINKER_SCRIPT)
-
-# Create boot assembly file if it doesn't exist
-boot.s:
-	@echo "Creating boot assembly file..."
-	@echo "# Multiboot header" > boot.s
-	@echo ".set ALIGN,    1<<0" >> boot.s
-	@echo ".set MEMINFO,  1<<1" >> boot.s
-	@echo ".set FLAGS,    ALIGN | MEMINFO" >> boot.s
-	@echo ".set MAGIC,    0x1BADB002" >> boot.s
-	@echo ".set CHECKSUM, -(MAGIC + FLAGS)" >> boot.s
-	@echo "" >> boot.s
-	@echo ".section .multiboot" >> boot.s
-	@echo ".align 4" >> boot.s
-	@echo ".long MAGIC" >> boot.s
-	@echo ".long FLAGS" >> boot.s
-	@echo ".long CHECKSUM" >> boot.s
-	@echo "" >> boot.s
-	@echo ".section .bss" >> boot.s
-	@echo ".align 16" >> boot.s
-	@echo "stack_bottom:" >> boot.s
-	@echo ".skip 16384 # 16 KiB" >> boot.s
-	@echo "stack_top:" >> boot.s
-	@echo "" >> boot.s
-	@echo ".section .text" >> boot.s
-	@echo ".global _start" >> boot.s
-	@echo ".type _start, @function" >> boot.s
-	@echo "_start:" >> boot.s
-	@echo "    mov $$stack_top, %esp" >> boot.s
-	@echo "    call kernel_main" >> boot.s
-	@echo "    cli" >> boot.s
-	@echo "1:  hlt" >> boot.s
-	@echo "    jmp 1b" >> boot.s
-	@echo ".size _start, . - _start" >> boot.s
-
-# Build kernel binary
-kernel: $(BUILD_DIR) $(LINKER_SCRIPT) boot.s $(ALL_OBJECTS)
-	@echo "LD $(KERNEL_NAME).bin"
-	$(LD) $(LDFLAGS) -o $(BUILD_DIR)/$(KERNEL_NAME).bin $(addprefix $(BUILD_DIR)/, $(ALL_OBJECTS))
-	@echo "Kernel built successfully: $(BUILD_DIR)/$(KERNEL_NAME).bin"
-	@echo "Size: $$(du -h $(BUILD_DIR)/$(KERNEL_NAME).bin | cut -f1)"
-
-# Verify multiboot compliance
-verify: kernel
-	@if command -v grub-file > /dev/null 2>&1; then \
-		if grub-file --is-x86-multiboot $(BUILD_DIR)/$(KERNEL_NAME).bin; then \
-			echo "✓ Multiboot compliant"; \
-		else \
-			echo "✗ Not multiboot compliant"; \
-		fi; \
-	else \
-		echo "grub-file not found, skipping multiboot verification"; \
-	fi
-
-# Create GRUB configuration
-$(GRUB_DIR)/grub.cfg: | $(GRUB_DIR)
-	@echo "Creating GRUB configuration..."
-	@echo "menuentry \"$(KERNEL_NAME) $(VERSION)\" {" > $@
-	@echo "    multiboot /boot/$(KERNEL_NAME).bin" >> $@
-	@echo "}" >> $@
-
-# Create directories for ISO
-$(BOOT_DIR) $(GRUB_DIR):
-	mkdir -p $@
-
-# Create bootable ISO
-iso: kernel verify $(BOOT_DIR) $(GRUB_DIR) $(GRUB_DIR)/grub.cfg
-	@echo "Creating ISO image..."
-	cp $(BUILD_DIR)/$(KERNEL_NAME).bin $(BOOT_DIR)/
-	@if command -v grub-mkrescue > /dev/null 2>&1; then \
-		grub-mkrescue -o $(KERNEL_NAME).iso $(ISO_DIR); \
-		echo "ISO created: $(KERNEL_NAME).iso"; \
-	else \
-		echo "Error: grub-mkrescue not found. Install GRUB tools."; \
-		exit 1; \
-	fi
-
-# Run in QEMU
-run: iso
-	@if command -v $(QEMU) > /dev/null 2>&1; then \
-		echo "Starting $(KERNEL_NAME) in QEMU..."; \
-		$(QEMU) $(QEMU_FLAGS); \
-	else \
-		echo "Error: $(QEMU) not found. Install QEMU."; \
-		exit 1; \
-	fi
-
-# Debug in QEMU with GDB support
-debug: iso
-	@if command -v $(QEMU) > /dev/null 2>&1; then \
-		echo "Starting $(KERNEL_NAME) in QEMU with debugging..."; \
-		$(QEMU) $(QEMU_FLAGS) -s -S & \
-		echo "QEMU started. Connect with: gdb $(BUILD_DIR)/$(KERNEL_NAME).bin"; \
-		echo "In GDB, run: target remote localhost:1234"; \
-	else \
-		echo "Error: $(QEMU) not found. Install QEMU."; \
-		exit 1; \
-	fi
-
-# Install kernel to /boot (requires sudo)
-install: kernel
-	@echo "Installing $(KERNEL_NAME) to /boot..."
-	@if [ "$$(id -u)" -ne 0 ]; then \
-		echo "Installation requires root privileges. Use: sudo make install"; \
-		exit 1; \
-	fi
-	cp $(BUILD_DIR)/$(KERNEL_NAME).bin /boot/$(KERNEL_NAME)-$(VERSION).bin
-	@echo "Kernel installed to /boot/$(KERNEL_NAME)-$(VERSION).bin"
-
-# Check dependencies
-deps:
-	@echo "Checking build dependencies..."
-	@echo -n "Cross-compiler ($(CC)): "
-	@if command -v $(CC) > /dev/null 2>&1; then \
-		echo "✓ Found"; \
-	else \
-		echo "✗ Not found"; \
-		echo "Install with: apt-get install gcc-multilib binutils"; \
-	fi
-	@echo -n "GRUB tools: "
-	@if command -v grub-mkrescue > /dev/null 2>&1; then \
-		echo "✓ Found"; \
-	else \
-		echo "✗ Not found"; \
-		echo "Install with: apt-get install grub-pc-bin xorriso"; \
-	fi
-	@echo -n "QEMU: "
-	@if command -v $(QEMU) > /dev/null 2>&1; then \
-		echo "✓ Found"; \
-	else \
-		echo "✗ Not found"; \
-		echo "Install with: apt-get install qemu-system-x86"; \
-	fi
-
-# Clean build files
+# --- Clean Target ---
 clean:
-	@echo "Cleaning build files..."
-	rm -rf $(BUILD_DIR)
-	rm -rf $(ISO_DIR)
-	rm -f $(KERNEL_NAME).iso
-	rm -f $(LINKER_SCRIPT)
-	rm -f boot.s
-	rm -f *.o
-	@echo "Clean complete."
+	rm -f $(OBJECTS) $(KERNEL_ELF) $(KERNEL_BIN)
 
-# Show build information
-info:
-	@echo "BASE Kernel Build Information"
-	@echo "============================="
-	@echo "Kernel Name: $(KERNEL_NAME)"
-	@echo "Version: $(VERSION)"
-	@echo "Architecture: $(ARCH)"
-	@echo "Target: $(TARGET)"
-	@echo "Compiler: $(CC)"
-	@echo "Build Directory: $(BUILD_DIR)"
-	@echo ""
-	@echo "Source Files:"
-	@for file in $(KERNEL_SOURCES) $(ASM_SOURCES); do \
-		echo "  $$file"; \
-	done
+# --- Run in QEMU (ensure QEMU is installed) ---
+run: all
+	qemu-system-i386 -kernel $(KERNEL_BIN)
+
+debug: all
+	qemu-system-i386 -s -S -kernel $(KERNEL_BIN)
+
+# You'll also need a linker.ld file in your root directory.
+# A basic linker.ld for 32-bit x86:
+# ENTRY(_start)
+# SECTIONS {
+#     . = 0x100000; /* Kernel starts at 1MB */
+#     .text ALIGN (0x1000) : {
+#         *(.text)
+#     }
+#     .rodata ALIGN (0x1000) : {
+#         *(.rodata)
+#     }
+#     .data ALIGN (0x1000) : {
+#         *(.data)
+#     }
+#     .bss ALIGN (0x1000) : {
+#         *(.bss)
+#     }
+#     /* This section will contain the function pointers for auto-registration */
+#     .ext_register_fns ALIGN(4) : {
+#         _ext_register_start = .;
+#         *(.ext_register_fns)
+#         _ext_register_end = .;
+#     }
+# }
