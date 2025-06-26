@@ -1,14 +1,12 @@
 #include <stdint.h>
 #include <stddef.h>
-#include "base_kernel.h" // Includes our core declarations for auto-discovery and APIs
+#include "base_kernel.h"
 
-// --- Core Kernel Static Variables ---
 static size_t terminal_row;
 static size_t terminal_column;
 static uint8_t terminal_color;
 static uint16_t* terminal_buffer;
 
-// Memory Management Globals
 #define MEMORY_BLOCK_SIZE 4096
 #define MAX_MEMORY_BLOCKS 1024
 
@@ -23,22 +21,15 @@ static memory_block_t memory_blocks[MAX_MEMORY_BLOCKS];
 static memory_block_t* free_list = NULL;
 static int memory_initialized = 0;
 
-// Extension system globals
 #define MAX_EXTENSIONS 32
 #define MAX_COMMANDS 64
 #define MAX_COMMAND_NAME 16
 
-// `extension_t` and `command_t` are defined in `base_kernel.h` now.
-// Remove duplicate definitions here if they were present.
 static extension_t extensions[MAX_EXTENSIONS];
 static command_t commands[MAX_COMMANDS];
 static int extension_count = 0;
 static int command_count = 0;
 
-// --- Utility functions ---
-// `vga_entry_color` and `vga_entry` are now in `base_kernel.h` as `static inline`.
-
-// NOTE: This strlen is a simple implementation. A more robust C standard library would provide this.
 size_t strlen(const char* str) {
     size_t len = 0;
     while (str[len])
@@ -46,7 +37,6 @@ size_t strlen(const char* str) {
     return len;
 }
 
-// --- Terminal functions ---
 void terminal_initialize(void) {
     terminal_row = 0;
     terminal_column = 0;
@@ -79,7 +69,6 @@ void terminal_scroll(void) {
         }
     }
 
-    // Clear the last line
     for (size_t x = 0; x < VGA_WIDTH; x++) {
         const size_t index = (VGA_HEIGHT - 1) * VGA_WIDTH + x;
         terminal_buffer[index] = vga_entry(' ', terminal_color);
@@ -115,7 +104,6 @@ void terminal_writestring(const char* data) {
     terminal_write(data, strlen(data));
 }
 
-// --- Memory Management functions ---
 void memory_initialize(void) {
     for (int i = 0; i < MAX_MEMORY_BLOCKS; i++) {
         memory_blocks[i].address = NULL;
@@ -124,9 +112,8 @@ void memory_initialize(void) {
         memory_blocks[i].next = NULL;
     }
 
-    // Set up initial free block
-    memory_blocks[0].address = (void*)0x100000; // 1MB
-    memory_blocks[0].size = 0x100000; // 1MB
+    memory_blocks[0].address = (void*)0x100000;
+    memory_blocks[0].size = 0x100000;
     memory_blocks[0].is_free = 1;
     free_list = &memory_blocks[0];
 
@@ -164,7 +151,7 @@ void* kmalloc(size_t size) {
         current = current->next;
     }
 
-    return NULL; // Out of memory
+    return NULL;
 }
 
 void kfree(void* ptr) {
@@ -173,17 +160,15 @@ void kfree(void* ptr) {
     for (int i = 0; i < MAX_MEMORY_BLOCKS; i++) {
         if (memory_blocks[i].address == ptr) {
             memory_blocks[i].is_free = 1;
-            // TODO: Implement block coalescing
             break;
         }
     }
 }
 
-// --- Extension Management API ---
 int register_extension(const char* name, const char* version,
                        int (*init_func)(void), void (*cleanup_func)(void)) {
     if (extension_count >= MAX_EXTENSIONS) {
-        return -1; // Extension table full
+        return -1;
     }
 
     extension_t* ext = &extensions[extension_count];
@@ -214,11 +199,11 @@ int load_extension(int ext_id) {
 
     extension_t* ext = &extensions[ext_id];
     if (ext->active) {
-        return 0; // Already active
+        return 0;
     }
 
     if (ext->init && ext->init() != 0) {
-        return -1; // Initialization failed
+        return -1;
     }
 
     ext->active = 1;
@@ -232,7 +217,7 @@ int unload_extension(int ext_id) {
 
     extension_t* ext = &extensions[ext_id];
     if (!ext->active) {
-        return 0; // Already inactive
+        return 0;
     }
 
     if (ext->cleanup) {
@@ -243,7 +228,6 @@ int unload_extension(int ext_id) {
     return 0;
 }
 
-// --- Command Registration API ---
 int register_command(const char* name, void (*handler)(const char*),
                      const char* description, int ext_id) {
     if (command_count >= MAX_COMMANDS) {
@@ -253,7 +237,7 @@ int register_command(const char* name, void (*handler)(const char*),
     if (ext_id >= 0 && ext_id < extension_count) {
         commands[command_count].owner = &extensions[ext_id];
     } else {
-        commands[command_count].owner = NULL; // Core command
+        commands[command_count].owner = NULL;
     }
 
     int i;
@@ -274,10 +258,9 @@ int register_command(const char* name, void (*handler)(const char*),
 
 command_t* find_command(const char* name) {
     for (int i = 0; i < command_count; i++) {
-        // Simple string comparison
         int match = 1;
         size_t name_len = strlen(name);
-        if (name_len > MAX_COMMAND_NAME -1) name_len = MAX_COMMAND_NAME -1; // Cap length
+        if (name_len > MAX_COMMAND_NAME -1) name_len = MAX_COMMAND_NAME -1;
 
         for (size_t j = 0; j < name_len; j++) {
             if (commands[i].name[j] != name[j]) {
@@ -285,14 +268,13 @@ command_t* find_command(const char* name) {
                 break;
             }
         }
-        if (match && commands[i].name[name_len] == '\0') { // Ensure exact match
+        if (match && commands[i].name[name_len] == '\0') {
             return &commands[i];
         }
     }
     return NULL;
 }
 
-// --- Core Command Handlers ---
 void cmd_help(const char* args) {
     terminal_writestring("BASE Kernel Commands:\n");
     terminal_writestring("====================\n");
@@ -402,7 +384,6 @@ void process_command(const char* input) {
     terminal_writestring(input);
     terminal_writestring("\n");
 
-    // Find and execute command
     command_t* cmd = find_command(command);
     if (cmd) {
         if (cmd->owner && !cmd->owner->active) {
@@ -421,18 +402,14 @@ void process_command(const char* input) {
     terminal_writestring("\n");
 }
 
-
-// --- Main Kernel Entry Point ---
 void kernel_main(void) {
     terminal_initialize();
     memory_initialize();
 
-    // Initialize core extension and command systems
     extension_count = 0;
     command_count = 0;
     init_core_commands();
 
-    // Display boot message
     terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK));
     terminal_writestring("BASE KERNEL LOADING...\n");
     terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK));
@@ -440,16 +417,12 @@ void kernel_main(void) {
     terminal_writestring("=== BASE KERNEL v1.0 ===\n");
     terminal_writestring("Extensible kernel core initialized\n\n");
 
-    // --- AUTOMATIC EXTENSION DISCOVERY AND INITIALIZATION ---
-    initialize_all_extensions(); // This function (from extension_bootstrap.c) will load all extensions
-    // --- END AUTOMATIC DISCOVERY ---
+    initialize_all_extensions();
 
-    // Welcome message
     terminal_writestring("Welcome to BASE kernel!\n");
     terminal_writestring("This is the minimal core. Extensions add functionality.\n");
     terminal_writestring("Type 'help' for available commands.\n\n");
 
-    // Initial commands for demonstration
     process_command("help");
     process_command("ext");
     process_command("info");
@@ -459,16 +432,11 @@ void kernel_main(void) {
     terminal_writestring("Awaiting keyboard input via 'cli_test' or other extension commands.\n");
     terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK));
 
-    // Kernel main loop
     while (1) {
-        // Halt and wait for interrupts.
-        // The Keyboard Extension (IRQ & KB Ext) will handle input via interrupts
-        // and its 'cli_test' command can then be used for interactive input.
         asm volatile("hlt");
     }
 }
 
-// The entry point for the kernel, called by the bootloader
 void _start(void) {
     kernel_main();
 }
