@@ -5,7 +5,7 @@
 Warning: This kernel is experimental and currently does not work reliably on most hardware or emulators YET.
 ## Requirements
 
-    qemu
+    qemu, 32bit
 
 ## Features
 
@@ -53,7 +53,8 @@ After that, simply update your Makefile by adding your new .c file to the C_SOUR
      C_SOURCES += src/extensions/my_cool_module.c 
 
 Run make, and your module will be part of the kernel, automatically found and loaded at boot.
-Future Plans
+
+## Future Plans
 
     Networking
 
@@ -63,6 +64,6 @@ Future Plans
 
     Support file systems and disk I/O
 
-License
+### License
 
 GPL - see LICENSE file.
